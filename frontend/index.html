@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multithreaded Chat (Branches Popup)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- React via CDN (no bundler) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="app-root"></div>
+
+  <!-- Vanilla JS selection helper -->
+  <script src="./selection.js"></script>
+
+  <!-- React app (compiled in-browser by Babel) -->
+  <script type="text/babel" data-type="module" src="./app.jsx"></script>
+</body>
+</html>
