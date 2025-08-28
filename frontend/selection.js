@@ -1,79 +1,95 @@
 // selection.js
-// Vanilla JS helper to detect text selection INSIDE a .message, show an "Ask" pill,
-// and hand control to React via a callback.
-// React registers the callback with window.initSelectionPill({ onAsk }).
+// Floating "Ask" pill for MAIN and POPUP containers.
+// Fix: don't hide the pill when clicking on the pill itself.
 
 (function () {
-  let onAskCallback = null;
-  let pillEl = null;
+  let pill;
 
-  function createPill() {
-    const btn = document.createElement('button');
-    btn.className = 'ask-pill';
-    btn.textContent = 'Ask';
-    btn.style.display = 'none';
-    btn.addEventListener('mousedown', (e) => e.preventDefault());
-    btn.addEventListener('click', () => {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const text = sel.toString().trim();
-      if (!text) return;
-      const range = sel.getRangeAt(0);
-      const originEl = closestMessage(range.commonAncestorContainer);
-      if (!originEl) return;
-      const originMessageId = originEl.getAttribute('data-id');
-
-      hidePill();
-      if (onAskCallback) {
-        onAskCallback({
-          originMessageId,
-          selectedText: text
-        });
-      }
-      sel.removeAllRanges(); // optional: clear selection after opening popup
-    });
-    document.body.appendChild(btn);
-    return btn;
-  }
-
-  function showPillAt(rect) {
-    if (!pillEl) pillEl = createPill();
-    pillEl.style.left = `${Math.min(rect.left + rect.width/2, window.innerWidth - 60)}px`;
-    pillEl.style.top = `${rect.top - 36}px`;
-    pillEl.style.display = 'inline-block';
+  function ensurePill() {
+    if (pill) return pill;
+    pill = document.createElement('button');
+    pill.className = 'ask-pill';
+    pill.style.position = 'absolute';
+    pill.style.display = 'none';
+    pill.style.zIndex = '3000';
+    pill.type = 'button';
+    pill.textContent = 'Ask';
+    document.body.appendChild(pill);
+    return pill;
   }
 
   function hidePill() {
-    if (pillEl) pillEl.style.display = 'none';
+    if (!pill) return;
+    pill.style.display = 'none';
+    pill.onclick = null;
   }
 
-  function closestMessage(node) {
-    let el = node.nodeType === 1 ? node : node.parentElement;
-    while (el && !el.classList?.contains('message')) {
-      el = el.parentElement;
-    }
-    return el;
+  function showPillAt(x, y, onClick) {
+    const el = ensurePill();
+    el.style.left = `${Math.max(8, x)}px`;
+    el.style.top  = `${Math.max(8, y)}px`;
+    el.style.display = 'inline-block';
+    el.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try { onClick(); } finally { hidePill(); }
+      const sel = window.getSelection?.();
+      if (sel && sel.removeAllRanges) sel.removeAllRanges();
+    };
   }
 
-  document.addEventListener('mouseup', () => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) { hidePill(); return; }
-    const text = sel.toString().trim();
-    if (!text) { hidePill(); return; }
+  function handleSelection(container, onAsk) {
+    return function () {
+      const sel = window.getSelection?.();
+      if (!sel || sel.isCollapsed) { hidePill(); return; }
 
-    const range = sel.getRangeAt(0);
-    const originEl = closestMessage(range.commonAncestorContainer);
-    if (!originEl) { hidePill(); return; }
+      const anchor = sel.anchorNode;
+      if (container && anchor && !container.contains(anchor)) { hidePill(); return; }
 
-    const rect = range.getBoundingClientRect();
-    if (!rect || !rect.height) { hidePill(); return; }
-    showPillAt(rect);
-  });
+      const text = (sel.toString() || '').trim();
+      if (!text) { hidePill(); return; }
 
-  document.addEventListener('scroll', hidePill, true);
-  window.addEventListener('resize', hidePill);
+      let rect;
+      try { rect = sel.getRangeAt(0).getBoundingClientRect(); }
+      catch { hidePill(); return; }
 
-  window.initSelectionPill = function ({ onAsk }) {
-    onAskCallback = onAsk;
+      const x = rect.right + window.scrollX + 6;
+      const y = rect.top + window.scrollY - 30;
+
+      showPillAt(x, y, () => onAsk({ selectedText: text }));
+    };
+  }
+
+  function makeBinding(container, onAsk) {
+    const handler = handleSelection(container, onAsk);
+    const target = container || document;
+
+    target.addEventListener('mouseup', handler);
+    target.addEventListener('keyup', handler);
+
+    // IMPORTANT: don't hide the pill when clicking the pill itself
+    const globalHide = (e) => {
+      if (pill && (e.target === pill || pill.contains(e.target))) return;
+      hidePill();
+    };
+    document.addEventListener('mousedown', globalHide);
+
+    return function detach() {
+      target.removeEventListener('mouseup', handler);
+      target.removeEventListener('keyup', handler);
+      document.removeEventListener('mousedown', globalHide);
+    };
+  }
+
+  // MAIN: attach to chat container (or body)
+  window.initSelectionPill = function ({ onAsk } = {}) {
+    const container = document.querySelector('.chat') || document.body;
+    return makeBinding(container, onAsk || (() => {}));
+  };
+
+  // POPUP: attach to a specific element (e.g., popup's .stream)
+  window.registerSelectionPillFor = function (el, onAsk) {
+    if (!el) return () => {};
+    return makeBinding(el, onAsk || (() => {}));
   };
 })();
