@@ -13,7 +13,7 @@
 
 const { useEffect, useRef, useState, useCallback } = React;
 
-const BACKEND_BASE = "http://localhost:5000";
+const BACKEND_BASE = "https://branch-gpt.onrender.com";
 const MAX_HISTORY = 5;
 const MAX_DEPTH = 3;
 
