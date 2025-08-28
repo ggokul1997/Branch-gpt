@@ -55,7 +55,8 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")  # configurable
 TEMPERATURE = 0.2
 MAX_TOKENS = 800
-BASE_URL = "https://api.groq.com/openai/v1"
+# https://api.groq.com/openai/v1 replacement 
+BASE_URL = "https://branch-gpt.onrender.com"
 
 def add_cors_headers(resp: Response) -> Response:
     resp.headers["Access-Control-Allow-Origin"] = "*"
